@@ -80,8 +80,8 @@ fun GlyphGrid(pixels: MutableList<Boolean>) {
             Row {
                 for (col in 0 until 13) {
                     val index = row * 13 + col
-                        val isOn = pixels[index]
-                            Box(
+                    val isOn = pixels[index]
+                        Box(
                                     modifier = Modifier
                                         .size(20.dp)
                                         .background(if (isOn) Color.White else Color.Black)
