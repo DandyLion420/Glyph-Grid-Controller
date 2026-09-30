@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.Button
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
@@ -47,15 +49,18 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(pixels.toList()) { glyphManager.setAppMatrixFrame(IntArray(169) { if (pixels[it]) 255 else 0 }) }
             GlyphEditorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) {
-                    Box(modifier = Modifier.padding(it)) { GlyphGrid(pixels = pixels) }
+                    Box(modifier = Modifier.padding(it)) { GlyphGrid(pixels = pixels, onClear = { pixels.replaceAll { false } }) }
                 }
             }
         }
     }
 }
 @Composable
-fun GlyphGrid(pixels: MutableList<Boolean>) {
+fun GlyphGrid(pixels: MutableList<Boolean>, onClear: () -> Unit) {
     Column {
+        Button(onClick = onClear) {
+            Text("Clear All")
+        }
         for (row in 0 until 13) {
             Row {
                 for (col in 0 until 13) {
