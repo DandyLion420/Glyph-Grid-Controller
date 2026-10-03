@@ -67,7 +67,8 @@ class MainActivity : ComponentActivity() {
                             pixels = pixels,
                             onClear = { pixels.replaceAll { false } },
                             brightness = brightness,
-                            onBrightnessChange = { brightness = it })
+                            onBrightnessChange = { brightness = it },
+                            onInvert = { pixels.replaceAll { !it } } )
                     }
                 }
             }
@@ -79,12 +80,16 @@ class MainActivity : ComponentActivity() {
         pixels: MutableList<Boolean>,
         onClear: () -> Unit,
         brightness: Int,
-        onBrightnessChange: (Int) -> Unit
+        onBrightnessChange: (Int) -> Unit,
+        onInvert: () -> Unit
     ) {
         Column {
             Button(onClick = onClear) {
                 Text("Clear All")
-            }
+                }
+                Button(onClick = onInvert) {
+                    Text("Invert")
+                }
             Slider(
                 value = brightness.toFloat(),
                 onValueChange = { onBrightnessChange(it.toInt()) },
