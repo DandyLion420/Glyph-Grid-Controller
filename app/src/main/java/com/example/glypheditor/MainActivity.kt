@@ -1,5 +1,5 @@
-package com.example.glypheditor
 
+package com.example.glypheditor
 import android.content.ComponentName
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -38,6 +38,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 
 class MainActivity : ComponentActivity() {
@@ -84,27 +89,12 @@ class MainActivity : ComponentActivity() {
                     Box(modifier = Modifier.padding(it)) {
                         GlyphGrid(
                             pixels = pixels,
-                            savedPatterns = savedPatterns,
-                            getPatternData = { name ->
-                                prefs.getString(name, null)
-                            },
-                            onLoadPattern = { name ->
-                                val data = prefs.getString(name, null)
-                                if (data != null && data.length == 169) {
-                                    for (i in 0 until 169) {
-                                        pixels[i] = data[i] == '1'
-                                    }
-                                }
-                            },
-                            onDeletePattern = { name ->
-                                prefs.edit { remove(name) }
-                                savedPatterns.remove(name)
-                            },
                             onClear = { pixels.replaceAll { false } },
                             brightness = brightness,
                             onBrightnessChange = { brightness = it },
                             onInvert = { pixels.replaceAll { !it } },
-                            onSave = { showSaveDialog = true} )
+                            onSave = { showSaveDialog = true }
+                        )
                         if (showSaveDialog) {
                             AlertDialog(onDismissRequest = { showSaveDialog = false },
                                 title = { Text("Save Pattern") },
@@ -140,95 +130,150 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-    @Composable
-    fun GlyphGrid(
-        pixels: MutableList<Boolean>,
-        savedPatterns: List<String>,
-        getPatternData: (String) -> String?,
-        onLoadPattern: (String) -> Unit,
-        onDeletePattern: (String) -> Unit,
-        onClear: () -> Unit,
-        brightness: Int,
-        onBrightnessChange: (Int) -> Unit,
-        onInvert: () -> Unit,
-        onSave: () -> Unit
+@Composable
+fun GlyphGrid(
+    pixels: MutableList<Boolean>,
+    onClear: () -> Unit,
+    brightness: Int,
+    onBrightnessChange: (Int) -> Unit,
+    onInvert: () -> Unit,
+    onSave: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column {
-            Button(onClick = onClear) {
-                Text("Clear All")
-            }
-            Button(onClick = onInvert) {
-                Text("Invert")
-            }
-            Button(onClick = onSave) {
+
+        // Save / Load
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Button(
+                onClick = onSave,
+                modifier = Modifier.weight(1f)
+            ) {
                 Text("Save")
             }
 
-            Text("Saved Patterns")
-            savedPatterns.forEach {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.height(220.dp)
-                ) {
-                    items(savedPatterns) { pattern ->
-                        val patternData = getPatternData(pattern)
+            Button(
+                onClick = { },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Load")
+            }
+        }
 
-                        Column {
-                            if (patternData != null && patternData.length == 169) {
-                                Column(
-                                    modifier = Modifier.clickable {
-                                        onLoadPattern(pattern)
-                                    }
-                                ) {
-                                    for (row in 0 until 13) {
-                                        Row {
-                                            for (col in 0 until 13) {
-                                                val index = row * 13 + col
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(3.dp)
-                                                        .background(
-                                                            if (patternData[index] == '1') Color.White
-                                                            else Color.Black
-                                                        )
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+        // Main 13 x 13 editor
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .pointerInput(Unit) {
+                    var paintState = true
+                    val visitedPixels = mutableSetOf<Int>()
 
-                            Text(pattern)
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            visitedPixels.clear()
 
-                            TextButton(
-                                onClick = { onDeletePattern(pattern) }
-                            ) {
-                                Text("Delete")
-                            }
-                        }
-                    }
-                }
-                Slider(
-                    value = brightness.toFloat(),
-                    onValueChange = { onBrightnessChange(it.toInt()) },
-                    valueRange = 0f..255f
-                )
-                for (row in 0 until 13) {
-                    Row {
-                        for (col in 0 until 13) {
+                            val col = (offset.x / (size.width / 13f))
+                                .toInt()
+                                .coerceIn(0, 12)
+
+                            val row = (offset.y / (size.height / 13f))
+                                .toInt()
+                                .coerceIn(0, 12)
+
                             val index = row * 13 + col
-                            val isOn = pixels[index]
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .background(if (isOn) Color.White else Color.Black)
-                                    .clickable { pixels[index] = !pixels[index] }
-                                    .padding(1.dp),
-                                content = {}
-                            )
+
+                            paintState = !pixels[index]
+                            pixels[index] = paintState
+                            visitedPixels.add(index)
+                        },
+
+                        onDrag = { change, _ ->
+                            change.consume()
+
+                            val col = (change.position.x / (size.width / 13f))
+                                .toInt()
+                                .coerceIn(0, 12)
+
+                            val row = (change.position.y / (size.height / 13f))
+                                .toInt()
+                                .coerceIn(0, 12)
+
+                            val index = row * 13 + col
+
+                            if (index !in visitedPixels) {
+                                pixels[index] = paintState
+                                visitedPixels.add(index)
+                            }
                         }
+                    )
+                }
+        ) {
+            for (row in 0 until 13) {
+                Row(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    for (col in 0 until 13) {
+                        val index = row * 13 + col
+                        val isOn = pixels[index]
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .padding(3.dp)
+                                .background(
+                                    color = if (isOn) Color.White else Color.DarkGray,
+                                    shape = RoundedCornerShape(35)
+                                )
+                                .clickable {
+                                    pixels[index] = !pixels[index]
+                                }
+                        )
                     }
                 }
             }
         }
+
+        // Brightness / Lock
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Slider(
+                value = brightness.toFloat(),
+                onValueChange = {
+                    onBrightnessChange(it.toInt())
+                },
+                valueRange = 0f..255f,
+                modifier = Modifier.weight(1f)
+            )
+
+            Button(
+                onClick = { }
+            ) {
+                Text("Lock")
+            }
+        }
+
+        // Clear / Invert
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Button(
+                onClick = onClear,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Clear")
+            }
+
+            Button(
+                onClick = onInvert,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Invert")
+            }
+        }
     }
+}
